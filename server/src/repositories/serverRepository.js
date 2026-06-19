@@ -10,7 +10,15 @@ export const serverRepository = {
   },
 
   findByUserId(userId) {
-    return Server.find({ "members.user": userId }).sort({ updatedAt: -1 });
+    return Server.find({ "members.user": userId })
+      .populate("members.user", "username email avatarUrl description")
+      .sort({ updatedAt: -1 });
+  },
+
+  findOwnedByUserId(userId) {
+    return Server.find({ owner: userId })
+      .populate("members.user", "username email avatarUrl description")
+      .sort({ updatedAt: -1 });
   },
 
   updateById(id, data) {
@@ -35,5 +43,13 @@ export const serverRepository = {
       { $pull: { members: { user: userId } } },
       { new: true }
     );
+  },
+
+  updateMemberRole(serverId, userId, role) {
+    return Server.findOneAndUpdate(
+      { _id: serverId, "members.user": userId },
+      { $set: { "members.$.role": role } },
+      { new: true }
+    ).populate("members.user", "username email avatarUrl description");
   }
 };

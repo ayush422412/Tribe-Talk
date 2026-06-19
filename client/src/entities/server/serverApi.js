@@ -30,6 +30,21 @@ export const serverApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Server"]
     }),
+    updateMemberRole: builder.mutation({
+      query: ({ serverId, userId, role }) => ({
+        url: `/servers/${serverId}/members/${userId}/role`,
+        method: "PATCH",
+        data: { role }
+      }),
+      invalidatesTags: ["Server"]
+    }),
+    kickMember: builder.mutation({
+      query: ({ serverId, userId }) => ({
+        url: `/servers/${serverId}/members/${userId}`,
+        method: "DELETE"
+      }),
+      invalidatesTags: ["Server"]
+    }),
     deleteServer: builder.mutation({
       query: (serverId) => ({ url: `/servers/${serverId}`, method: "DELETE" }),
       invalidatesTags: ["Server", "Channel", "Message"]
@@ -44,5 +59,7 @@ export const {
   useJoinServerMutation,
   useLeaveServerMutation,
   useUpdateServerMutation,
+  useUpdateMemberRoleMutation,
+  useKickMemberMutation,
   useDeleteServerMutation
 } = serverApi;

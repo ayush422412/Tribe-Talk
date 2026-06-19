@@ -8,6 +8,8 @@ import { authRoutes } from "./routes/authRoutes.js";
 import { serverRoutes } from "./routes/serverRoutes.js";
 import { channelRoutes } from "./routes/channelRoutes.js";
 import { messageRoutes } from "./routes/messageRoutes.js";
+import { userRoutes } from "./routes/userRoutes.js";
+import { friendRoutes } from "./routes/friendRoutes.js";
 import { redisRateLimit } from "./middlewares/rateLimitMiddleware.js";
 import { isRedisConnected } from "./shared/config/redis.js";
 
@@ -33,6 +35,8 @@ export function createApp() {
   app.use("/api/servers", serverRoutes);
   app.use("/api/channels", channelRoutes);
   app.use("/api/messages", messageRoutes);
+  app.use("/api/users", userRoutes);
+  app.use("/api/friends", friendRoutes);
 
   app.use(errorMiddleware);
 

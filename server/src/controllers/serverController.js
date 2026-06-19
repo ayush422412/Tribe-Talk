@@ -34,5 +34,20 @@ export const serverController = {
   async leaveServer(req, res) {
     const server = await serverService.leaveServer(req.user._id, req.params.serverId);
     res.json({ server });
+  },
+
+  async updateMemberRole(req, res) {
+    const server = await serverService.updateMemberRole(
+      req.user._id,
+      req.params.serverId,
+      req.params.userId,
+      req.body
+    );
+    res.json({ server });
+  },
+
+  async kickMember(req, res) {
+    const server = await serverService.kickMember(req.user._id, req.params.serverId, req.params.userId);
+    res.json({ server });
   }
 };

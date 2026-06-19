@@ -20,6 +20,6 @@ const axiosBaseQuery =
 export const api = createApi({
   reducerPath: "api",
   baseQuery: axiosBaseQuery(),
-  tagTypes: ["Auth", "Server", "Channel", "Message"],
+  tagTypes: ["Auth", "Server", "Channel", "Message", "Friend", "Conversation"],
   endpoints: () => ({})
 });

@@ -10,15 +10,15 @@ import { setCurrentServerId } from "../workspace/workspaceSlice.js";
 export function CreateServerModal() {
   const dispatch = useDispatch();
   const isOpen = useSelector((state) => state.ui.createServerOpen);
-  const [name, setName] = useState("");
+  const [form, setForm] = useState({ name: "", iconUrl: "" });
   const [createServer, { isLoading, error }] = useCreateServerMutation();
 
   async function handleSubmit(event) {
     event.preventDefault();
-    const result = await createServer({ name }).unwrap();
+    const result = await createServer(form).unwrap();
     dispatch(setCurrentServerId(result.server._id));
     dispatch(closeCreateServer());
-    setName("");
+    setForm({ name: "", iconUrl: "" });
   }
 
   return (
@@ -26,11 +26,19 @@ export function CreateServerModal() {
       <form onSubmit={handleSubmit}>
         <Input
           label="Server name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
+          value={form.name}
+          onChange={(event) => setForm({ ...form, name: event.target.value })}
           placeholder="Study Group"
           required
         />
+        <div className="mt-4">
+          <Input
+            label="Server image URL"
+            value={form.iconUrl}
+            onChange={(event) => setForm({ ...form, iconUrl: event.target.value })}
+            placeholder="https://example.com/server.png"
+          />
+        </div>
         {error && <p className="mt-3 text-sm text-red-300">{error.data?.message}</p>}
         <div className="mt-6 flex justify-end gap-3">
           <Button type="button" variant="ghost" onClick={() => dispatch(closeCreateServer())}>

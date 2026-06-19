@@ -19,6 +19,8 @@ serverRoutes.route("/:serverId")
 
 serverRoutes.post("/:serverId/join", asyncHandler(serverController.joinServer));
 serverRoutes.post("/:serverId/leave", asyncHandler(serverController.leaveServer));
+serverRoutes.patch("/:serverId/members/:userId/role", asyncHandler(serverController.updateMemberRole));
+serverRoutes.delete("/:serverId/members/:userId", asyncHandler(serverController.kickMember));
 
 serverRoutes.route("/:serverId/channels")
   .get(asyncHandler(channelController.getServerChannels))

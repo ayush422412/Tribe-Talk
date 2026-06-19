@@ -113,5 +113,49 @@ export const serverService = {
     await cache.del(redisKeys.serversForUser(userId));
 
     return updatedServer;
+  },
+
+  async updateMemberRole(userId, serverId, memberUserId, { role }) {
+    const allowedRoles = ["admin", "moderator", "member"];
+
+    if (!allowedRoles.includes(role)) {
+      throw new AppError("Invalid role", 400);
+    }
+
+    const server = await this.getServer(userId, serverId);
+    const actorMember = requirePermission(server, userId, "manage_members");
+    const targetMember = requireServerMember(server, memberUserId);
+
+    if (targetMember.role === "owner") {
+      throw new AppError("Owner role cannot be changed", 400);
+    }
+
+    if (actorMember.role !== "owner" && role === "admin") {
+      throw new AppError("Only the owner can promote members to admin", 403);
+    }
+
+    const updatedServer = await serverRepository.updateMemberRole(serverId, memberUserId, role);
+    await cache.del(redisKeys.serversForUser(memberUserId), redisKeys.serversForUser(userId));
+
+    return updatedServer;
+  },
+
+  async kickMember(userId, serverId, memberUserId) {
+    const server = await this.getServer(userId, serverId);
+    const actorMember = requirePermission(server, userId, "manage_members");
+    const targetMember = requireServerMember(server, memberUserId);
+
+    if (targetMember.role === "owner") {
+      throw new AppError("Owner cannot be kicked", 400);
+    }
+
+    if (actorMember.role !== "owner" && targetMember.role === "admin") {
+      throw new AppError("Only the owner can kick admins", 403);
+    }
+
+    const updatedServer = await serverRepository.removeMember(serverId, memberUserId);
+    await cache.del(redisKeys.serversForUser(memberUserId), redisKeys.serversForUser(userId));
+
+    return updatedServer;
   }
 };

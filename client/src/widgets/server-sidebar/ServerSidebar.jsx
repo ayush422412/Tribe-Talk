@@ -55,7 +55,11 @@ export function ServerSidebar() {
             currentServerId === server._id ? "bg-accent text-white" : "bg-gray-700 text-gray-200"
           }`}
         >
-          {initials(server.name)}
+          {server.iconUrl ? (
+            <img src={server.iconUrl} alt="" className="h-full w-full rounded-2xl object-cover" />
+          ) : (
+            initials(server.name)
+          )}
         </button>
       ))}
     </aside>

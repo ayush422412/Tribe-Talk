@@ -1,4 +1,4 @@
-import { Copy, Hash, LogOut, Pencil, Plus, Settings, Trash2 } from "lucide-react";
+import { Copy, Gauge, Hash, LogOut, Pencil, Plus, Settings, Trash2 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -175,8 +175,16 @@ export function ChannelSidebar() {
       </div>
 
       <button
+        onClick={() => navigate("/dashboard")}
+        className="flex h-12 items-center gap-2 border-t border-gray-950 px-4 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+      >
+        <Gauge size={18} />
+        Dashboard
+      </button>
+
+      <button
         onClick={handleLogout}
-        className="flex h-14 items-center gap-2 border-t border-gray-950 px-4 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+        className="flex h-12 items-center gap-2 border-t border-gray-950 px-4 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
       >
         <LogOut size={18} />
         Logout

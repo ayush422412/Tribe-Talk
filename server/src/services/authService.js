@@ -8,7 +8,8 @@ function toSafeUser(user) {
     id: user._id.toString(),
     username: user.username,
     email: user.email,
-    avatarUrl: user.avatarUrl
+    avatarUrl: user.avatarUrl,
+    description: user.description
   };
 }
 
@@ -28,8 +29,18 @@ export const authService = {
       throw new AppError("Email is already registered", 409);
     }
 
+    const existingUsername = await userRepository.findByUsername(username);
+
+    if (existingUsername) {
+      throw new AppError("Username is already taken", 409);
+    }
+
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = await userRepository.create({ username, email, passwordHash });
+    const user = await userRepository.create({
+      username: username.toLowerCase(),
+      email,
+      passwordHash
+    });
     const token = signAuthToken(user._id.toString());
 
     return { user: toSafeUser(user), token };
