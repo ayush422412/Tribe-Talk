@@ -11,6 +11,8 @@ const allowedMimeTypes = new Set([
   "text/plain"
 ]);
 
+const imageMimeTypes = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+
 const storage = multer.diskStorage({
   destination(req, file, cb) {
     cb(null, "uploads");
@@ -32,6 +34,18 @@ export const uploadMessageFile = multer({
       return;
     }
 
+    cb(null, true);
+  }
+}).single("file");
+
+export const uploadImageFile = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter(req, file, cb) {
+    if (!imageMimeTypes.has(file.mimetype)) {
+      cb(new AppError("Please select a JPEG, PNG, GIF, or WebP image", 400));
+      return;
+    }
     cb(null, true);
   }
 }).single("file");

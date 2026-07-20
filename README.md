@@ -43,6 +43,29 @@ Frontend follows:
 App -> Pages -> Widgets -> Features -> Entities -> Shared
 ```
 
+Current project layout:
+
+```txt
+client/src/
+├── app/          # router and global styles
+├── entities/     # domain-specific API endpoints
+├── features/     # focused user actions and their UI
+├── pages/        # route-level screens and page-only components
+├── shared/       # reusable API, socket, routing, and UI primitives
+├── store/        # Redux store and state slices
+└── widgets/      # composed, reusable screen regions
+
+server/src/
+├── controllers/  # request/response handling
+├── middlewares/  # Express middleware
+├── models/       # Mongoose schemas
+├── repositories/ # persistence queries
+├── routes/       # HTTP route definitions
+├── services/     # business rules and permissions
+├── shared/       # configuration, errors, Redis, and utilities
+└── socket/       # Socket.IO setup and handlers
+```
+
 ## Software Architecture
 
 TribeTalk uses a layered MERN architecture designed to keep business rules, database access, and UI state clearly separated.

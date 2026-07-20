@@ -86,7 +86,7 @@ export const messageService = {
     }
 
     await messageRepository.deleteById(messageId);
-    return { deleted: true };
+    return { deleted: true, channelId: message.channel.toString() };
   },
 
   async toggleReaction(userId, messageId, { emoji }) {

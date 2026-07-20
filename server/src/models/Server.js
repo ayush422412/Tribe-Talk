@@ -14,7 +14,7 @@ const serverMemberSchema = new mongoose.Schema(
     }
   },
   { _id: false }
-);
+);  
 
 const serverSchema = new mongoose.Schema(
   {
