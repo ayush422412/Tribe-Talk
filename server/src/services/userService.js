@@ -2,6 +2,8 @@ import { userRepository } from "../repositories/userRepository.js";
 import { serverRepository } from "../repositories/serverRepository.js";
 import { AppError } from "../shared/errors/AppError.js";
 
+// Service to manage user-related operations such as fetching dashboard data and updating profile information
+
 export const userService = {
   async getDashboard(userId) {
     const user = await userRepository.findById(userId);
@@ -13,6 +15,8 @@ export const userService = {
       joinedServers: servers.filter((server) => server.owner.toString() !== userId.toString())
     };
   },
+
+  // Update user profile information such as username, avatar URL, and description
 
   async updateProfile(userId, { username, avatarUrl, description }) {
     const update = {};

@@ -8,10 +8,16 @@ import { createSocketServer } from "./socket/socketServer.js";
 await connectDatabase();
 await connectRedis();
 
+// Create HTTP server and attach Socket.IO server to it
+
 const app = createApp();
 const httpServer = createServer(app);
 
+// Create and configure the Socket.IO server
+
 app.set("io", createSocketServer(httpServer));
+
+// Start the HTTP server
 
 httpServer.listen(env.port, () => {
   console.log(`Server listening on http://localhost:${env.port}`);

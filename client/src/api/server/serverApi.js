@@ -15,7 +15,7 @@ export const serverApi = api.injectEndpoints({
 
 //  Create a new server with the provided details
     createServer: builder.mutation({
-      query: (body) => ({ url: "/servers", method: "POST", data: body }),
+      query: (body) => ({ url: "/servers", method: "POST", body }),
       invalidatesTags: ["Server", "Channel"]
     }),
 
@@ -36,7 +36,7 @@ export const serverApi = api.injectEndpoints({
       query: ({ serverId, ...body }) => ({
         url: `/servers/${serverId}`,
         method: "PATCH",
-        data: body
+        body
       }),
       invalidatesTags: ["Server"]
     }),
@@ -46,7 +46,7 @@ export const serverApi = api.injectEndpoints({
       query: ({ serverId, userId, role }) => ({
         url: `/servers/${serverId}/members/${userId}/role`,
         method: "PATCH",
-        data: { role }
+        body: { role }
       }),
       invalidatesTags: ["Server"]
     }),

@@ -11,7 +11,7 @@ export const userApi = api.injectEndpoints({
 
     // Update the authenticated user's profile information
     updateProfile: builder.mutation({
-      query: (body) => ({ url: "/users/me", method: "PATCH", data: body }),
+      query: (body) => ({ url: "/users/me", method: "PATCH", body }),
       async onQueryStarted(arg, { dispatch, queryFulfilled }) {
         const { data } = await queryFulfilled;
         dispatch(setCredentials(data.user));
@@ -23,7 +23,7 @@ export const userApi = api.injectEndpoints({
       query: (file) => {
         const formData = new FormData();
         formData.append("file", file);
-        return { url: "/users/uploads/images", method: "POST", data: formData };
+        return { url: "/users/uploads/images", method: "POST", body: formData };
       }
     })
   })

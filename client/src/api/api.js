@@ -1,27 +1,11 @@
-import { createApi } from "@reduxjs/toolkit/query/react";
-import { axiosClient } from "./axiosClient.js";
-
-// Define a base query function that uses axios to make HTTP requests
-
-const axiosBaseQuery =
-  () =>
-  async ({ url, method = "GET", data, params }) => {
-    try {
-      const result = await axiosClient({ url, method, data, params });
-      return { data: result.data };
-    } catch (axiosError) {
-      return {
-        error: {
-          status: axiosError.response?.status,
-          data: axiosError.response?.data ?? { message: axiosError.message }
-        }
-      };
-    }
-  };
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 export const api = createApi({
   reducerPath: "api",
-  baseQuery: axiosBaseQuery(),
+  baseQuery: fetchBaseQuery({
+    baseUrl: import.meta.env.VITE_API_URL ?? "http://localhost:5000/api",
+    credentials: "include"
+  }),
   tagTypes: ["Auth", "Server", "Channel", "Message", "Friend", "Conversation"],
   endpoints: () => ({})
 });

@@ -5,8 +5,15 @@ import { AppError } from "../shared/errors/AppError.js";
 import { cache } from "../shared/redis/cache.js";
 import { redisKeys } from "../shared/redis/keys.js";
 import { requirePermission, requireServerMember } from "./permissionService.js";
+import { channelReadStateRepository } from "../repositories/channelReadStateRepository.js";
+
+
+// Service to manage server-related operations such as creating servers, managing members, and handling server data
 
 export const serverService = {
+
+  // Create a new server with the specified name and icon URL, and assign the user as the owner]
+
   async createServer(userId, { name, iconUrl = "" }) {
     if (!name || name.trim().length < 2) {
       throw new AppError("Server name must be at least 2 characters", 400);
@@ -19,15 +26,18 @@ export const serverService = {
       members: [{ user: userId, role: "owner" }]
     });
 
-    await channelRepository.create({
-      server: server._id,
-      name: "general",
-      position: 0
-    });
+    // await channelRepository.create({
+    //   server: server._id,
+    //   name: "general",
+    //   position: 0
+    // });
 
     await cache.del(redisKeys.serversForUser(userId));
     return server;
   },
+
+
+  // Get the list of servers the user is a member of, utilizing caching for performance
 
   async getMyServers(userId) {
     const cacheKey = redisKeys.serversForUser(userId);
@@ -43,6 +53,8 @@ export const serverService = {
     return servers;
   },
 
+  // Get a specific server by ID, ensuring the user is a member of the server
+
   async getServer(userId, serverId) {
     const server = await serverRepository.findById(serverId);
 
@@ -53,6 +65,8 @@ export const serverService = {
     requireServerMember(server, userId);
     return server;
   },
+
+  // Update server details such as name and icon URL, ensuring the user has permission to manage the server
 
   async updateServer(userId, serverId, data) {
     const server = await this.getServer(userId, serverId);
@@ -67,6 +81,9 @@ export const serverService = {
     return updatedServer;
   },
 
+
+  // Delete a server, ensuring the user has permission to manage the server and cleaning up associated channels and messages
+
   async deleteServer(userId, serverId) {
     const server = await this.getServer(userId, serverId);
     requirePermission(server, userId, "manage_server");
@@ -79,6 +96,9 @@ export const serverService = {
 
     return { deleted: true };
   },
+
+
+  // Add a user to a server's member list, ensuring the server exists and the user is not already a member
 
   async joinServer(userId, serverId) {
     const server = await serverRepository.findById(serverId);
@@ -97,10 +117,15 @@ export const serverService = {
     }
 
     const updatedServer = await serverRepository.addMember(serverId, { user: userId, role: "member" });
+    const channels = await channelRepository.findByServerId(serverId);
+    await Promise.all(channels.map((channel) => channelReadStateRepository.initializeForUsers(channel._id, [userId])));
     await cache.del(redisKeys.serversForUser(userId));
 
     return updatedServer;
   },
+
+
+  // Remove a user from a server's member list, ensuring the user is not the owner and cleaning up cache
 
   async leaveServer(userId, serverId) {
     const server = await this.getServer(userId, serverId);
@@ -114,6 +139,8 @@ export const serverService = {
 
     return updatedServer;
   },
+
+  // Update a member's role within a server, ensuring proper permissions and role hierarchy are respected
 
   async updateMemberRole(userId, serverId, memberUserId, { role }) {
     const allowedRoles = ["admin", "moderator", "member"];
@@ -139,6 +166,8 @@ export const serverService = {
 
     return updatedServer;
   },
+
+  // Kick a member from a server, ensuring proper permissions and role hierarchy are respected
 
   async kickMember(userId, serverId, memberUserId) {
     const server = await this.getServer(userId, serverId);

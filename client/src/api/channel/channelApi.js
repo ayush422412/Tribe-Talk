@@ -16,7 +16,7 @@ export const channelApi = api.injectEndpoints({
       query: ({ serverId, name }) => ({
         url: `/servers/${serverId}/channels`,
         method: "POST",
-        data: { name }
+        body: { name }
       }),
       invalidatesTags: ["Channel"]
     }),
@@ -27,7 +27,7 @@ export const channelApi = api.injectEndpoints({
       query: ({ channelId, ...body }) => ({
         url: `/channels/${channelId}`,
         method: "PATCH",
-        data: body
+        body
       }),
       invalidatesTags: ["Channel"]
     }),

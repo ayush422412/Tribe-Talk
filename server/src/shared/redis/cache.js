@@ -38,7 +38,6 @@ export const cache = {
     if (!redis) {
       return;
     }
-
     const keys = await redis.keys(pattern);
 
     if (keys.length > 0) {

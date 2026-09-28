@@ -11,7 +11,7 @@ export const friendApi = api.injectEndpoints({
 
 // Send a friend request to another user
     sendFriendRequest: builder.mutation({
-      query: (body) => ({ url: "/friends/requests", method: "POST", data: body }),
+      query: (body) => ({ url: "/friends/requests", method: "POST", body }),
       invalidatesTags: ["Friend"]
     }),
 
@@ -20,7 +20,7 @@ export const friendApi = api.injectEndpoints({
       query: ({ requestId, status }) => ({
         url: `/friends/requests/${requestId}`,
         method: "PATCH",
-        data: { status }
+        body: { status }
       }),
       invalidatesTags: ["Friend"]
     }),
@@ -36,7 +36,7 @@ export const friendApi = api.injectEndpoints({
       query: ({ friendId, content }) => ({
         url: `/friends/${friendId}/messages`,
         method: "POST",
-        data: { content }
+        body: { content }
       }),
       invalidatesTags: (result, error, arg) => [{ type: "Conversation", id: arg.friendId }]
     })

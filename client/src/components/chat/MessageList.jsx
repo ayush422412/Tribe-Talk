@@ -12,7 +12,8 @@ export function MessageList({
   onCancelEditing,
   onSaveEditing,
   onDelete,
-  onReact
+  onReact,
+  firstUnreadMessageId
 }) {
   if (messages.length === 0) {
     return (
@@ -30,7 +31,15 @@ export function MessageList({
         const canDelete = isAuthor || canDeleteAnyMessage;
 
         return (
-          <article key={message._id} className="group flex gap-3 rounded-2xl px-3 py-2 transition hover:bg-[#fff3c8]">
+          <div key={message._id}>
+            {message._id === firstUnreadMessageId && (
+              <div className="my-3 border-t-2 border-[#536dfe] text-center">
+                <span className="relative -top-3 rounded-full border-2 border-ink bg-[#536dfe] px-3 py-1 text-xs font-black text-white">
+                  NEW MESSAGES
+                </span>
+              </div>
+            )}
+          <article className="group flex gap-3 rounded-2xl px-3 py-2 transition hover:bg-[#fff3c8]">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-ink bg-[#83df4a] text-sm font-black shadow-[2px_2px_0_#171717]">
               {message.author?.username?.[0]?.toUpperCase() ?? "U"}
             </div>
@@ -58,6 +67,7 @@ export function MessageList({
               onReact={(emoji) => onReact(message._id, emoji)}
             />
           </article>
+          </div>
         );
       })}
     </div>

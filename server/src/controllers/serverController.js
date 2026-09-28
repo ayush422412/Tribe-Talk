@@ -1,11 +1,13 @@
 import { serverService } from "../services/serverService.js";
 
 export const serverController = {
+
   // Create a new server for the authenticated user
   async createServer(req, res) {
     const server = await serverService.createServer(req.user._id, req.body);
     res.status(201).json({ server });
   },
+  
 // Fetch all servers the authenticated user is a member of
   async getMyServers(req, res) {
     const servers = await serverService.getMyServers(req.user._id);

@@ -8,6 +8,9 @@ export const messageRoutes = Router();
 
 messageRoutes.use(requireAuth);
 
+messageRoutes.get("/unread", asyncHandler(messageController.getUnreadCounts));
+messageRoutes.patch("/channels/:channelId/read", asyncHandler(messageController.markChannelRead));
+
 messageRoutes.route("/channels/:channelId")
   .get(asyncHandler(messageController.getChannelMessages))
   .post(asyncHandler(messageController.createMessage));

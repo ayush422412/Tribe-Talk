@@ -6,7 +6,7 @@ export const authApi = api.injectEndpoints({
     register: builder.mutation({
 
       // Register a new user and automatically log them in
-      query: (body) => ({ url: "/auth/register", method: "POST", data: body }),
+      query: (body) => ({ url: "/auth/register", method: "POST", body }),
       async onQueryStarted(arg, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
@@ -17,11 +17,11 @@ export const authApi = api.injectEndpoints({
       },
       invalidatesTags: ["Auth"]
     }),
-
+  
     // Log in an existing user and store their credentials in the Redux state
 
     login: builder.mutation({
-      query: (body) => ({ url: "/auth/login", method: "POST", data: body }),
+      query: (body) => ({ url: "/auth/login", method: "POST", body }),
       async onQueryStarted(arg, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;

@@ -21,3 +21,5 @@ export const userController = {
     res.status(201).json({ url: buildAttachment(req.file).url });
   }
 };
+
+

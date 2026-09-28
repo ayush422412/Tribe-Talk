@@ -4,11 +4,21 @@ export const messageApi = api.injectEndpoints({
   endpoints: (builder) => ({
     // Fetch messages for a specific channel, optionally before a certain message ID
     getMessages: builder.query({
-      query: ({ channelId, before }) => ({
+      query: ({ channelId, before, after }) => ({
         url: `/messages/channels/${channelId}`,
-        params: { before }
+        params: { before, after }
       }),
       providesTags: (result, error, arg) => [{ type: "Message", id: arg.channelId }]
+    }),
+
+    getUnreadCounts: builder.query({
+      query: (serverId) => ({ url: "/messages/unread", params: { serverId } }),
+      providesTags: (result, error, serverId) => [{ type: "Message", id: `unread-${serverId}` }]
+    }),
+
+    markChannelRead: builder.mutation({
+      query: (channelId) => ({ url: `/messages/channels/${channelId}/read`, method: "PATCH" }),
+      invalidatesTags: ["Message"]
     }),
 
 // Create a new message in a specific channel
@@ -16,7 +26,7 @@ export const messageApi = api.injectEndpoints({
       query: ({ channelId, content }) => ({
         url: `/messages/channels/${channelId}`,
         method: "POST",
-        data: { content }
+        body: { content }
       }),
       invalidatesTags: (result, error, arg) => [{ type: "Message", id: arg.channelId }]
     }),
@@ -35,7 +45,7 @@ export const messageApi = api.injectEndpoints({
         return {
           url: `/messages/channels/${channelId}/uploads`,
           method: "POST",
-          data: formData
+          body: formData
         };
       },
       invalidatesTags: (result, error, arg) => [{ type: "Message", id: arg.channelId }]
@@ -47,7 +57,7 @@ export const messageApi = api.injectEndpoints({
       query: ({ messageId, content }) => ({
         url: `/messages/${messageId}`,
         method: "PATCH",
-        data: { content }
+        body: { content }
       }),
       invalidatesTags: ["Message"]
     }),
@@ -65,7 +75,7 @@ export const messageApi = api.injectEndpoints({
       query: ({ messageId, emoji }) => ({
         url: `/messages/${messageId}/reactions`,
         method: "POST",
-        data: { emoji }
+        body: { emoji }
       }),
       invalidatesTags: ["Message"]
     })
@@ -74,6 +84,9 @@ export const messageApi = api.injectEndpoints({
 
 export const {
   useGetMessagesQuery,
+  useLazyGetMessagesQuery,
+  useGetUnreadCountsQuery,
+  useMarkChannelReadMutation,
   useCreateMessageMutation,
   useUploadMessageFileMutation,
   useEditMessageMutation,

@@ -1,8 +1,8 @@
 import { Hash } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useGetChannelsQuery } from "../../api/channel/channelApi.js";
-import { useCreateMessageMutation, useDeleteMessageMutation, useEditMessageMutation, useGetMessagesQuery, useToggleReactionMutation, useUploadMessageFileMutation } from "../../api/message/messageApi.js";
+import { useCreateMessageMutation, useDeleteMessageMutation, useEditMessageMutation, useGetMessagesQuery, useLazyGetMessagesQuery, useMarkChannelReadMutation, useToggleReactionMutation, useUploadMessageFileMutation } from "../../api/message/messageApi.js";
 import { useGetServerQuery } from "../../api/server/serverApi.js";
 import { getSocket } from "../../services/socketClient.js";
 import { MessageComposer } from "./MessageComposer.jsx";
@@ -18,6 +18,8 @@ export function ChatArea() {
     { channelId: currentChannelId },
     { skip: !currentChannelId }
   );
+  const [loadOlderMessages, loadOlderState] = useLazyGetMessagesQuery();
+  const [markChannelRead] = useMarkChannelReadMutation();
   const [createMessage, createMessageState] = useCreateMessageMutation();
   const [uploadMessageFile, uploadState] = useUploadMessageFileMutation();
   const [editMessage] = useEditMessageMutation();
@@ -29,8 +31,17 @@ export function ChatArea() {
   const [editingContent, setEditingContent] = useState("");
   const [liveMessages, setLiveMessages] = useState([]);
   const [deletedMessageIds, setDeletedMessageIds] = useState([]);
+  const [olderMessages, setOlderMessages] = useState([]);
+  const [newerMessages, setNewerMessages] = useState([]);
+  const [olderPageInfo, setOlderPageInfo] = useState(null);
+  const [newerPageInfo, setNewerPageInfo] = useState(null);
   const [typingUsers, setTypingUsers] = useState({});
   const typingTimeoutRef = useRef(null);
+  const messageScrollRef = useRef(null);
+  const scrollPositionByChannelRef = useRef(new Map());
+  const restoredChannelRef = useRef(null);
+  const markedReadChannelRef = useRef(null);
+  const shouldFollowLatestRef = useRef(true);
 
   const currentChannel = useMemo(
     () => channelsData?.channels?.find((channel) => channel._id === currentChannelId),
@@ -41,12 +52,49 @@ export function ChatArea() {
     [currentUser?.id, serverData]
   );
   const canDeleteAnyMessage = ["owner", "admin", "moderator"].includes(currentMember?.role);
-  const messages = mergeMessages(messagesData?.messages ?? [], liveMessages, deletedMessageIds);
+  const messages = mergeMessages(
+    [...olderMessages, ...(messagesData?.messages ?? []), ...newerMessages],
+    liveMessages,
+    deletedMessageIds
+  );
+
+  useLayoutEffect(() => {
+    const scrollContainer = messageScrollRef.current;
+
+    if (!scrollContainer || !messagesData || !currentChannelId || restoredChannelRef.current === currentChannelId) {
+      return;
+    }
+
+    const savedPosition = scrollPositionByChannelRef.current.get(currentChannelId);
+    scrollContainer.scrollTop = savedPosition ?? scrollContainer.scrollHeight;
+    shouldFollowLatestRef.current = savedPosition === undefined;
+    restoredChannelRef.current = currentChannelId;
+  }, [currentChannelId, messages.length]);
+
+  function saveScrollPosition() {
+    if (currentChannelId && messageScrollRef.current) {
+      const scrollContainer = messageScrollRef.current;
+      scrollPositionByChannelRef.current.set(currentChannelId, scrollContainer.scrollTop);
+      shouldFollowLatestRef.current = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < 100;
+    }
+  }
+
+  useLayoutEffect(() => {
+    const scrollContainer = messageScrollRef.current;
+    if (scrollContainer && shouldFollowLatestRef.current) {
+      scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    }
+  }, [messages.length]);
 
   useEffect(() => {
     setLiveMessages([]);
     setDeletedMessageIds([]);
+    setOlderMessages([]);
+    setNewerMessages([]);
+    setOlderPageInfo(null);
+    setNewerPageInfo(null);
     setTypingUsers({});
+    markedReadChannelRef.current = null;
 
     if (!currentChannelId) {
       return;
@@ -103,6 +151,47 @@ export function ChatArea() {
     };
   }, [currentChannelId, currentUser?.id]);
 
+  useEffect(() => {
+    if (!currentChannelId || !messagesData || markedReadChannelRef.current === currentChannelId) {
+      return;
+    }
+
+    // Preserve the unread page on screen before saving the new read position.
+    markChannelRead(currentChannelId);
+    markedReadChannelRef.current = currentChannelId;
+  }, [currentChannelId, markChannelRead, messagesData]);
+
+  async function handleMessageScroll() {
+    saveScrollPosition();
+    const scrollContainer = messageScrollRef.current;
+    const olderInfo = olderPageInfo ?? messagesData?.pageInfo;
+    const newerInfo = newerPageInfo ?? messagesData?.pageInfo;
+
+    if (!scrollContainer || loadOlderState.isFetching) {
+      return;
+    }
+
+    if (scrollContainer.scrollTop <= 80 && olderInfo?.hasOlder) {
+      const previousHeight = scrollContainer.scrollHeight;
+      const result = await loadOlderMessages({ channelId: currentChannelId, before: olderInfo.nextBefore }).unwrap();
+      setOlderMessages((existingMessages) => mergeMessageArrays(result.messages, existingMessages));
+      setOlderPageInfo(result.pageInfo);
+
+      requestAnimationFrame(() => {
+        const updatedContainer = messageScrollRef.current;
+        if (updatedContainer) updatedContainer.scrollTop = updatedContainer.scrollHeight - previousHeight;
+      });
+      return;
+    }
+
+    const isNearBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < 80;
+    if (isNearBottom && newerInfo?.hasNewer) {
+      const result = await loadOlderMessages({ channelId: currentChannelId, after: newerInfo.nextAfter }).unwrap();
+      setNewerMessages((existingMessages) => mergeMessageArrays(existingMessages, result.messages));
+      setNewerPageInfo(result.pageInfo);
+    }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -110,6 +199,8 @@ export function ChatArea() {
     if ((!trimmedContent && !selectedFile) || !currentChannelId) {
       return;
     }
+
+    shouldFollowLatestRef.current = true;
 
     if (selectedFile) {
       await uploadMessageFile({
@@ -233,7 +324,11 @@ export function ChatArea() {
         <span className="font-black uppercase tracking-wide">{currentChannel?.name ?? "Select a channel"}</span>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-6 py-7">
+      <div
+        ref={messageScrollRef}
+        onScroll={handleMessageScroll}
+        className="flex-1 overflow-y-auto px-6 py-7"
+      >
         <MessageList
           messages={messages}
           currentUserId={currentUser?.id}
@@ -246,6 +341,7 @@ export function ChatArea() {
           onSaveEditing={handleSaveMessage}
           onDelete={handleDeleteMessage}
           onReact={handleReaction}
+          firstUnreadMessageId={messagesData?.pageInfo?.firstUnreadMessageId}
         />
       </div>
 
@@ -302,4 +398,10 @@ function mergeMessages(savedMessages, liveMessages, deletedMessageIds) {
     (messages, message) => upsertMessage(messages, message),
     []
   ).filter((message) => !deletedMessageIds.includes(message._id));
+}
+
+function mergeMessageArrays(firstMessages, secondMessages) {
+  return [...firstMessages, ...secondMessages].filter(
+    (message, index, allMessages) => allMessages.findIndex((item) => item._id === message._id) === index
+  );
 }

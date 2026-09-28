@@ -1,7 +1,12 @@
 import { getRedisClient } from "../shared/config/redis.js";
 import { redisKeys } from "../shared/redis/keys.js";
 
+// Service to manage user presence and socket connections across multiple server instances using Redis
+
 export const presenceService = {
+
+  // Add a socket ID for a user and check if the user was previously offline
+  
   async addSocket(userId, socketId) {
     const redis = getRedisClient();
 
@@ -18,6 +23,9 @@ export const presenceService = {
 
     return { wasOffline: countBefore === 0 };
   },
+
+
+  // Remove a socket ID for a user and check if the user is now offline
 
   async removeSocket(userId, socketId) {
     const redis = getRedisClient();
@@ -38,6 +46,9 @@ export const presenceService = {
 
     return { isOffline: remainingSockets === 0 };
   },
+
+
+  // Get the list of online user IDs
 
   async getOnlineUserIds() {
     const redis = getRedisClient();

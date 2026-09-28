@@ -8,6 +8,9 @@ import { userRepository } from "../repositories/userRepository.js";
 import { messageService } from "../services/messageService.js";
 import { presenceService } from "../services/presenceService.js";
 
+
+// Function to create and configure the Socket.IO server
+
 export function createSocketServer(httpServer) {
   const io = new SocketServer(httpServer, {
     cors: {
@@ -18,10 +21,11 @@ export function createSocketServer(httpServer) {
 
   const redisClient = getRedisClient();
   const redisSubscriber = getRedisSubscriber();
-
+  // Use Redis adapter for scaling across multiple server instances
   if (redisClient && redisSubscriber) {
     io.adapter(createAdapter(redisClient, redisSubscriber));
   }
+  // Middleware to authenticate socket connections
 
   io.use(async (socket, next) => {
     try {
@@ -32,7 +36,7 @@ export function createSocketServer(httpServer) {
 
       if (!user) {
         throw new Error("Unauthorized");
-      }
+      } 
 
       socket.user = user;
       next();
@@ -41,8 +45,11 @@ export function createSocketServer(httpServer) {
     }
   });
 
+  // Handle socket connection event
+
   io.on("connection", async (socket) => {
     const userId = socket.user._id.toString();
+    socket.join(`user:${userId}`);
     const { wasOffline } = await presenceService.addSocket(userId, socket.id);
 
     if (wasOffline) {
@@ -52,28 +59,43 @@ export function createSocketServer(httpServer) {
       });
     }
 
+
+// Handle presence list request
+
     socket.on("presence:list", async (ack) => {
       const userIds = await presenceService.getOnlineUserIds();
       ack?.({ ok: true, userIds });
     });
 
+    // Handle channel join event
+
     socket.on("channel:join", ({ channelId }) => {
       socket.join(`channel:${channelId}`);
     });
+
+    // Handle channel leave event
 
     socket.on("channel:leave", ({ channelId }) => {
       socket.leave(`channel:${channelId}`);
     });
 
+    // Handle message creation event
+
     socket.on("message:create", async ({ channelId, content }, ack) => {
       try {
         const message = await messageService.createMessage(socket.user._id, channelId, { content });
         io.to(`channel:${channelId}`).emit("message:created", { message });
+        const memberIds = await messageService.getChannelMemberIds(socket.user._id, channelId);
+        memberIds
+          .filter((memberId) => memberId !== socket.user._id.toString())
+          .forEach((memberId) => io.to(`user:${memberId}`).emit("channel:unread", { channelId }));
         ack?.({ ok: true, message });
       } catch (error) {
         ack?.({ ok: false, message: error.message });
       }
     });
+
+    // Handle typing start event
 
     socket.on("typing:start", ({ channelId }) => {
       socket.to(`channel:${channelId}`).emit("typing:started", {
@@ -85,6 +107,8 @@ export function createSocketServer(httpServer) {
       });
     });
 
+    // Handle typing stop event
+
     socket.on("typing:stop", ({ channelId }) => {
       socket.to(`channel:${channelId}`).emit("typing:stopped", {
         channelId,
@@ -92,6 +116,8 @@ export function createSocketServer(httpServer) {
       });
     });
 
+    
+    // Handle user disconnect
     socket.on("disconnect", async () => {
       const { isOffline } = await presenceService.removeSocket(userId, socket.id);
 
@@ -103,3 +129,11 @@ export function createSocketServer(httpServer) {
 
   return io;
 }
+
+
+
+
+
+
+
+

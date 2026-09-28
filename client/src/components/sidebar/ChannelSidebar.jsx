@@ -7,6 +7,8 @@ import { useGetServerQuery } from "../../api/server/serverApi.js";
 import { setCurrentChannelId } from "../../store/slices/workspaceSlice.js";
 import { openCreateChannel, openEditServer } from "../../store/slices/uiSlice.js";
 import { useLogoutMutation } from "../../api/authApi.js";
+import { useGetUnreadCountsQuery } from "../../api/message/messageApi.js";
+import { getSocket } from "../../services/socketClient.js";
 
 export function ChannelSidebar() {
   const dispatch = useDispatch();
@@ -16,12 +18,20 @@ export function ChannelSidebar() {
   const currentChannelId = useSelector((state) => state.workspace.currentChannelId);
   const { data: serverData } = useGetServerQuery(currentServerId, { skip: !currentServerId });
   const { data: channelsData } = useGetChannelsQuery(currentServerId, { skip: !currentServerId });
+  const { data: unreadData, refetch: refetchUnreadCounts } = useGetUnreadCountsQuery(currentServerId, {
+    skip: !currentServerId,
+    pollingInterval: 15000
+  });
   const [logout] = useLogoutMutation();
   const [updateChannel] = useUpdateChannelMutation();
   const [deleteChannel] = useDeleteChannelMutation();
   const [editingChannelId, setEditingChannelId] = useState(null);
   const [editingName, setEditingName] = useState("");
   const channels = channelsData?.channels ?? [];
+  const unreadCounts = useMemo(
+    () => new Map((unreadData?.counts ?? []).map(({ channelId, count }) => [channelId, count])),
+    [unreadData]
+  );
   const currentMember = useMemo(
     () =>
       serverData?.server?.members?.find((member) => member.user._id === currentUser?.id),
@@ -35,6 +45,17 @@ export function ChannelSidebar() {
       dispatch(setCurrentChannelId(channels[0]._id));
     }
   }, [channels, currentChannelId, dispatch]);
+
+  useEffect(() => {
+    if (!currentServerId) return;
+
+    const socket = getSocket();
+    socket.connect();
+    const handleUnreadUpdate = () => refetchUnreadCounts();
+    socket.on("channel:unread", handleUnreadUpdate);
+
+    return () => socket.off("channel:unread", handleUnreadUpdate);
+  }, [currentServerId, refetchUnreadCounts]);
 
   async function handleLogout() {
     await logout().unwrap();
@@ -141,6 +162,11 @@ export function ChannelSidebar() {
                   >
                     <Hash size={17} />
                     <span className="truncate">{channel.name}</span>
+                    {unreadCounts.get(channel._id) > 0 && currentChannelId !== channel._id && (
+                      <span className="ml-auto rounded-full border-2 border-ink bg-[#83df4a] px-1.5 py-0.5 text-[10px] font-black text-ink">
+                        {unreadCounts.get(channel._id) > 99 ? "99+" : unreadCounts.get(channel._id)}
+                      </span>
+                    )}
                   </button>
                   {canManageChannels && (
                     <div className="flex pr-1 opacity-0 transition group-hover:opacity-100">

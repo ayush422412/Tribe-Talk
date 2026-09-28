@@ -1,5 +1,6 @@
 import { channelRepository } from "../repositories/channelRepository.js";
 import { messageRepository } from "../repositories/messageRepository.js";
+import { channelReadStateRepository } from "../repositories/channelReadStateRepository.js";
 import { serverService } from "./serverService.js";
 import { requirePermission, requireServerMember } from "./permissionService.js";
 import { AppError } from "../shared/errors/AppError.js";
@@ -7,6 +8,9 @@ import { cache } from "../shared/redis/cache.js";
 import { redisKeys } from "../shared/redis/keys.js";
 
 export const channelService = {
+
+  // Create a new channel within a server, ensuring the user has permission to manage channels
+
   async createChannel(userId, serverId, { name }) {
     const server = await serverService.getServer(userId, serverId);
     requirePermission(server, userId, "manage_channels");
@@ -23,10 +27,17 @@ export const channelService = {
       position: channels.length
     });
 
+    // New channel members begin with a read position at creation time.
+    await channelReadStateRepository.initializeForUsers(
+      channel._id,
+      server.members.map((member) => member.user?._id ?? member.user)
+    );
     await cache.del(redisKeys.channelsForServer(serverId));
     return channel;
   },
 
+
+  // Get all channels for a server, ensuring the user is a member of the server and utilizing caching for performance
   async getServerChannels(userId, serverId) {
     const server = await serverService.getServer(userId, serverId);
     requireServerMember(server, userId);
@@ -43,6 +54,9 @@ export const channelService = {
 
     return channels;
   },
+
+
+  // Update channel details such as name and position, ensuring the user has permission to manage channels
 
   async updateChannel(userId, channelId, data) {
     const channel = await channelRepository.findById(channelId);
@@ -70,6 +84,9 @@ export const channelService = {
     return updatedChannel;
   },
 
+
+  // Delete a channel, ensuring the user has permission to manage channels and cleaning up associated messages
+
   async deleteChannel(userId, channelId) {
     const channel = await channelRepository.findById(channelId);
 
@@ -81,6 +98,7 @@ export const channelService = {
     requirePermission(server, userId, "manage_channels");
 
     await messageRepository.deleteByChannelId(channelId);
+    await channelReadStateRepository.deleteByChannelId(channelId);
     await channelRepository.deleteById(channelId);
     await cache.del(redisKeys.channelsForServer(channel.server));
 

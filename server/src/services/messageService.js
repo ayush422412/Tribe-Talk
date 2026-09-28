@@ -1,10 +1,13 @@
 import { channelRepository } from "../repositories/channelRepository.js";
 import { messageRepository } from "../repositories/messageRepository.js";
+import { channelReadStateRepository } from "../repositories/channelReadStateRepository.js";
 import { serverService } from "./serverService.js";
 import { requirePermission, requireServerMember } from "./permissionService.js";
 import { AppError } from "../shared/errors/AppError.js";
 
 export const messageService = {
+
+  // Get messages for a specific channel, ensuring the user is a member of the server and utilizing pagination options
   async getChannelMessages(userId, channelId, options = {}) {
     const channel = await channelRepository.findById(channelId);
 
@@ -16,12 +19,70 @@ export const messageService = {
     requireServerMember(server, userId);
 
     const limit = Math.min(Number(options.limit) || 30, 50);
-    const messages = await messageRepository.findByChannelId(channelId, {
-      limit,
-      before: options.before
-    });
+    const readState = await channelReadStateRepository.findByUserAndChannel(userId, channelId);
+    // A user opening a channel for the first time starts from the latest messages, not its entire history.
+    const lastReadAt = readState?.lastReadAt;
+    const unreadCount = lastReadAt
+      ? await messageRepository.countAfter(channelId, lastReadAt, userId)
+      : 0;
+    const firstUnreadMessage = unreadCount > 0
+      ? await messageRepository.findFirstAfter(channelId, lastReadAt, userId)
+      : null;
+    const before = options.before;
+    const after = options.after;
+    const initialUnreadPage = !before && firstUnreadMessage;
+    const messages = after
+      ? await messageRepository.findAfter(channelId, new Date(after), limit)
+      : initialUnreadPage
+      ? await messageRepository.findFromDate(channelId, firstUnreadMessage.createdAt, limit)
+      : await messageRepository.findByChannelId(channelId, { limit, before });
+    const chronologicalMessages = initialUnreadPage || after ? messages : messages.reverse();
+    const hasOlder = chronologicalMessages.length > 0 && await messageRepository.hasBefore(
+      channelId,
+      chronologicalMessages[0].createdAt
+    );
+    const hasNewer = chronologicalMessages.length > 0 && await messageRepository.hasAfter(
+      channelId,
+      chronologicalMessages[chronologicalMessages.length - 1].createdAt
+    );
 
-    return messages.reverse();
+    return {
+      messages: chronologicalMessages,
+      pageInfo: {
+        hasOlder: Boolean(hasOlder),
+        nextBefore: chronologicalMessages[0]?.createdAt?.toISOString() ?? null,
+        hasNewer: Boolean(hasNewer),
+        nextAfter: chronologicalMessages[chronologicalMessages.length - 1]?.createdAt?.toISOString() ?? null,
+        unreadCount,
+        firstUnreadMessageId: firstUnreadMessage?._id?.toString() ?? null
+      }
+    };
+  },
+
+  async markChannelRead(userId, channelId) {
+    const channel = await channelRepository.findById(channelId);
+    if (!channel) throw new AppError("Channel not found", 404);
+
+    const server = await serverService.getServer(userId, channel.server);
+    requireServerMember(server, userId);
+    return channelReadStateRepository.markRead(userId, channelId);
+  },
+
+  async getUnreadCounts(userId, serverId) {
+    const server = await serverService.getServer(userId, serverId);
+    requireServerMember(server, userId);
+    const channels = await channelRepository.findByServerId(serverId);
+    // Existing accounts receive a baseline once; messages sent after that become unread.
+    await channelReadStateRepository.initializeForChannelStates(userId, channels.map((channel) => channel._id));
+    const readStates = await channelReadStateRepository.findByUserAndChannels(userId, channels.map((channel) => channel._id));
+    const readAtByChannel = new Map(readStates.map((state) => [state.channel.toString(), state.lastReadAt]));
+    const counts = await Promise.all(channels.map(async (channel) => ({
+      channelId: channel._id.toString(),
+      count: readAtByChannel.has(channel._id.toString())
+        ? await messageRepository.countAfter(channel._id, readAtByChannel.get(channel._id.toString()), userId)
+        : 0
+    })));
+    return counts;
   },
 
   async createMessage(userId, channelId, { content, attachments = [] }) {
@@ -47,6 +108,14 @@ export const messageService = {
       content: content?.trim() ?? "",
       attachments
     });
+  },
+
+  async getChannelMemberIds(userId, channelId) {
+    const channel = await channelRepository.findById(channelId);
+    if (!channel) throw new AppError("Channel not found", 404);
+
+    const server = await serverService.getServer(userId, channel.server);
+    return server.members.map((member) => (member.user?._id ?? member.user).toString());
   },
 
   async editMessage(userId, messageId, { content }) {
