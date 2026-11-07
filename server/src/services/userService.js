@@ -16,6 +16,21 @@ export const userService = {
     };
   },
 
+  async updateNotificationPreferences(userId, { mentionEmails, mutedChannelIds }) {
+    const currentUser = await userRepository.findById(userId);
+    if (!currentUser) throw new AppError("User not found", 404);
+    if (mentionEmails !== undefined && typeof mentionEmails !== "boolean") {
+      throw new AppError("mentionEmails must be a boolean", 400);
+    }
+    if (mutedChannelIds !== undefined && (!Array.isArray(mutedChannelIds) || mutedChannelIds.some((id) => typeof id !== "string"))) {
+      throw new AppError("mutedChannelIds must be an array of channel IDs", 400);
+    }
+    return userRepository.updateNotificationPreferences(userId, {
+      mentionEmails: mentionEmails ?? currentUser.notificationPreferences?.mentionEmails ?? true,
+      mutedChannelIds: mutedChannelIds ?? currentUser.notificationPreferences?.mutedChannelIds ?? []
+    });
+  },
+
   // Update user profile information such as username, avatar URL, and description
 
   async updateProfile(userId, { username, avatarUrl, description }) {

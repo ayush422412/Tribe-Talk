@@ -26,6 +26,14 @@ export const friendRepository = {
     );
   },
 
+  markNotificationEmailSent(id) {
+    return FriendRequest.findOneAndUpdate(
+      { _id: id, status: "pending", notificationEmailSentAt: null },
+      { notificationEmailSentAt: new Date() },
+      { new: true }
+    );
+  },
+
   findRequestsForUser(userId) {
     return FriendRequest.find({
       $or: [{ from: userId }, { to: userId }]

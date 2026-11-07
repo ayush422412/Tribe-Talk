@@ -11,6 +11,13 @@ export const messageApi = api.injectEndpoints({
       providesTags: (result, error, arg) => [{ type: "Message", id: arg.channelId }]
     }),
 
+    searchMessages: builder.query({
+      query: ({ q, channelId, senderId, from, to, page = 1, limit = 20 }) => ({
+        url: "/messages/search",
+        params: { q, channelId, senderId, from, to, page, limit }
+      })
+    }),
+
     getUnreadCounts: builder.query({
       query: (serverId) => ({ url: "/messages/unread", params: { serverId } }),
       providesTags: (result, error, serverId) => [{ type: "Message", id: `unread-${serverId}` }]
@@ -85,6 +92,7 @@ export const messageApi = api.injectEndpoints({
 export const {
   useGetMessagesQuery,
   useLazyGetMessagesQuery,
+  useLazySearchMessagesQuery,
   useGetUnreadCountsQuery,
   useMarkChannelReadMutation,
   useCreateMessageMutation,

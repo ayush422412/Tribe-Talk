@@ -1,7 +1,9 @@
 import bcrypt from "bcryptjs";
 import { userRepository } from "../repositories/userRepository.js";
+import { enqueueWelcomeEmail } from "../queues/emailQueue.js";
 import { AppError } from "../shared/errors/AppError.js";
 import { signAuthToken } from "../shared/utils/authToken.js";
+import { logError } from "../shared/utils/logger.js";
 
 function toSafeUser(user) {
   return {
@@ -42,6 +44,15 @@ export const authService = {
       passwordHash
     });
     const token = signAuthToken(user._id.toString());
+
+    // The registration response is never blocked by Redis or SMTP availability.
+    void enqueueWelcomeEmail({
+      userId: user._id.toString(),
+      email: user.email,
+      username: user.username
+    }).catch((error) => {
+      logError("Unable to enqueue welcome email", error, { userId: user._id.toString() });
+    });
 
     return { user: toSafeUser(user), token };
   },

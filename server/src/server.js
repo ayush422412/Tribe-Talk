@@ -17,6 +17,16 @@ const httpServer = createServer(app);
 
 app.set("io", createSocketServer(httpServer));
 
+if (env.runWorkersInApi) {
+  if (env.emailWorkerEnabled) {
+    await import("./workers/emailWorker.js");
+  }
+
+  if (env.elasticsearchEnabled) {
+    await import("./workers/messageSearchWorker.js");
+  }
+}
+
 // Start the HTTP server
 
 httpServer.listen(env.port, () => {

@@ -4,6 +4,12 @@ import { channelReadStateRepository } from "../repositories/channelReadStateRepo
 import { serverService } from "./serverService.js";
 import { requirePermission, requireServerMember } from "./permissionService.js";
 import { AppError } from "../shared/errors/AppError.js";
+import { enqueueMentionEmail } from "../queues/emailQueue.js";
+import { enqueueMessageDelete, enqueueMessageIndex } from "../queues/messageSearchQueue.js";
+import { mentionNotificationRepository } from "../repositories/mentionNotificationRepository.js";
+import { userRepository } from "../repositories/userRepository.js";
+import { isElasticsearchEnabled } from "../search/elasticsearchClient.js";
+import { logError } from "../shared/utils/logger.js";
 
 export const messageService = {
 
@@ -102,12 +108,15 @@ export const messageService = {
       throw new AppError("Message content or file attachment is required", 400);
     }
 
-    return messageRepository.create({
+    const message = await messageRepository.create({
       channel: channelId,
       author: userId,
       content: content?.trim() ?? "",
       attachments
     });
+
+    scheduleMessageSideEffects(message, server);
+    return message;
   },
 
   async getChannelMemberIds(userId, channelId) {
@@ -133,10 +142,14 @@ export const messageService = {
       throw new AppError("Message content is required", 400);
     }
 
-    return messageRepository.updateById(messageId, {
+    const updatedMessage = await messageRepository.updateById(messageId, {
       content,
       editedAt: new Date()
     });
+    const channel = await channelRepository.findById(updatedMessage.channel);
+    const server = channel ? await serverService.getServer(userId, channel.server) : null;
+    if (server) scheduleMessageSideEffects(updatedMessage, server);
+    return updatedMessage;
   },
 
   async deleteMessage(userId, messageId) {
@@ -155,6 +168,11 @@ export const messageService = {
     }
 
     await messageRepository.deleteById(messageId);
+    if (isElasticsearchEnabled()) {
+      void enqueueMessageDelete({ messageId, deletedAt: new Date() }).catch((error) => {
+        logError("Unable to enqueue message deletion for Elasticsearch", error, { messageId });
+      });
+    }
     return { deleted: true, channelId: message.channel.toString() };
   },
 
@@ -195,3 +213,34 @@ export const messageService = {
     return messageRepository.save(message);
   }
 };
+
+function scheduleMessageSideEffects(message, server) {
+  if (isElasticsearchEnabled()) {
+    void enqueueMessageIndex(message).catch((error) => {
+      logError("Unable to enqueue message indexing", error, { messageId: message._id.toString() });
+    });
+  }
+
+  void queueMentionNotifications(message, server).catch((error) => {
+    logError("Unable to queue mention notifications", error, { messageId: message._id.toString() });
+  });
+}
+
+async function queueMentionNotifications(message, server) {
+  const usernames = [...new Set([...String(message.content ?? "").matchAll(/@([a-z0-9_]{3,32})\b/gi)].map((match) => match[1].toLowerCase()))];
+  if (usernames.length === 0) return;
+
+  const members = new Set(server.members.map((member) => (member.user?._id ?? member.user).toString()));
+  const users = await userRepository.findByUsernames(usernames);
+
+  for (const user of users) {
+    const userId = user._id.toString();
+    const muted = user.notificationPreferences?.mutedChannelIds?.some((channelId) => channelId.toString() === message.channel.toString());
+    if (!members.has(userId) || userId === message.author._id.toString() || user.notificationPreferences?.mentionEmails === false || muted) continue;
+
+    await mentionNotificationRepository.ensure(message._id, user._id);
+    void enqueueMentionEmail({ messageId: message._id.toString(), recipientId: userId, channelId: message.channel.toString() }).catch((error) => {
+      logError("Unable to enqueue mention email", error, { messageId: message._id.toString(), recipientId: userId });
+    });
+  }
+}

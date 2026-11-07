@@ -1,0 +1,11 @@
+.git
+node_modules
+**/node_modules
+**/dist
+**/.vite
+.env
+**/.env
+server/uploads/*
+!server/uploads/.gitkeep
+npm-debug.log*
+

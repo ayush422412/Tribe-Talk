@@ -10,4 +10,5 @@ userRoutes.use(requireAuth);
 
 userRoutes.get("/dashboard", asyncHandler(userController.getDashboard));
 userRoutes.patch("/me", asyncHandler(userController.updateProfile));
+userRoutes.patch("/me/notifications", asyncHandler(userController.updateNotificationPreferences));
 userRoutes.post("/uploads/images", uploadImageFile, asyncHandler(userController.uploadImage));

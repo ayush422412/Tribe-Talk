@@ -241,3 +241,60 @@ erDiagram
 - MongoDB remains the source of truth for users, servers, channels, and messages.
 - RBAC lives in the service layer so every entry point enforces the same permissions.
 - The frontend avoids prop drilling by storing app-level selections in Redux.
+
+## Background email and message search
+
+Run the API and BullMQ workers in separate terminals:
+
+```bash
+npm run dev --workspace server
+npm run dev:worker:email --workspace server
+npm run dev:worker:search --workspace server
+```
+
+Email jobs require valid SMTP settings in `server/.env`. Mention emails are enabled by default per user. Users can change notification preferences with:
+
+```http
+PATCH /api/users/me/notifications
+{
+  "mentionEmails": true,
+  "mutedChannelIds": []
+}
+```
+
+### Elasticsearch setup
+
+MongoDB remains the permanent source of truth. Elasticsearch stores only a searchable projection of messages. Start Elasticsearch (for example, Docker):
+
+```bash
+docker run --name tribetalk-elasticsearch -p 9200:9200 -e discovery.type=single-node -e xpack.security.enabled=false docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+```
+
+Set these variables in `server/.env` and restart the API and search worker:
+
+```env
+ELASTICSEARCH_ENABLED=true
+ELASTICSEARCH_NODE=http://127.0.0.1:9200
+ELASTICSEARCH_USERNAME=
+ELASTICSEARCH_PASSWORD=
+ELASTICSEARCH_MESSAGE_INDEX=tribetalk_messages
+```
+
+Search messages with authenticated requests:
+
+```text
+GET /api/messages/search?q=project&channelId=<optional>&senderId=<optional>&from=<ISO-date>&to=<ISO-date>&page=1&limit=20
+```
+
+After enabling Elasticsearch, build the initial index and run the search worker:
+
+```bash
+npm run reindex:messages --workspace server
+npm run dev:worker:search --workspace server
+```
+
+To retry failed search-sync jobs after Elasticsearch recovers:
+
+```bash
+npm run retry:search-jobs --workspace server
+```

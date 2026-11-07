@@ -16,6 +16,10 @@ const friendRequestSchema = new mongoose.Schema(
       type: String,
       enum: ["pending", "accepted", "rejected"],
       default: "pending"
+    },
+    notificationEmailSentAt: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }

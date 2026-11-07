@@ -1,6 +1,9 @@
 import { friendRepository } from "../repositories/friendRepository.js";
 import { userRepository } from "../repositories/userRepository.js";
+import { enqueueFriendRequestEmail } from "../queues/emailQueue.js";
+import { env } from "../shared/config/env.js";
 import { AppError } from "../shared/errors/AppError.js";
+import { logError } from "../shared/utils/logger.js";
 
 function friendFromRequest(request, userId) {
   const fromId = request.from._id.toString();
@@ -13,7 +16,14 @@ export const friendService = {
       throw new AppError("Username is required", 400);
     }
 
-    const targetUser = await userRepository.findByUsername(username);
+    const [sender, targetUser] = await Promise.all([
+      userRepository.findById(userId),
+      userRepository.findByUsername(username)
+    ]);
+
+    if (!sender) {
+      throw new AppError("User not found", 404);
+    }
 
     if (!targetUser) {
       throw new AppError("User not found", 404);
@@ -29,7 +39,21 @@ export const friendService = {
       throw new AppError("Friend request already exists", 409);
     }
 
-    return friendRepository.createRequest(userId, targetUser._id);
+    const request = await friendRepository.createRequest(userId, targetUser._id);
+
+    // Queueing is best-effort and must not change a valid friend-request response.
+    void enqueueFriendRequestEmail({
+      requestId: request._id.toString(),
+      recipientEmail: targetUser.email,
+      senderName: sender.username,
+      friendRequestUrl: new URL("/dashboard", env.clientUrl).toString()
+    }).catch((error) => {
+      logError("Unable to enqueue friend request email", error, {
+        requestId: request._id.toString()
+      });
+    });
+
+    return request;
   },
 
   async getFriendOverview(userId) {

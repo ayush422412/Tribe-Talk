@@ -8,6 +8,11 @@ export const userController = {
     res.json(dashboard);
   },
 
+  async updateNotificationPreferences(req, res) {
+    const user = await userService.updateNotificationPreferences(req.user._id, req.body);
+    res.json({ notificationPreferences: user.notificationPreferences });
+  },
+
   async updateProfile(req, res) {
     const user = await userService.updateProfile(req.user._id, req.body);
     res.json({ user });
@@ -21,5 +26,3 @@ export const userController = {
     res.status(201).json({ url: buildAttachment(req.file).url });
   }
 };
-
-

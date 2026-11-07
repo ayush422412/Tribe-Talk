@@ -3,7 +3,7 @@ import { env } from "../config/env.js";
 export function setAuthCookie(res, token) {
   res.cookie(env.cookieName, token, {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: env.cookieSameSite,
     secure: env.nodeEnv === "production",
     maxAge: 7 * 24 * 60 * 60 * 1000
   });
@@ -12,7 +12,7 @@ export function setAuthCookie(res, token) {
 export function clearAuthCookie(res) {
   res.clearCookie(env.cookieName, {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: env.cookieSameSite,
     secure: env.nodeEnv === "production"
   });
 }

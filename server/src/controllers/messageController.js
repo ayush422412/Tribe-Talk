@@ -1,6 +1,7 @@
 import { messageService } from "../services/messageService.js";
 import { buildAttachment } from "../middlewares/uploadMiddleware.js";
 import { AppError } from "../shared/errors/AppError.js";
+import { messageSearchService } from "../search/messageSearchService.js";
 
 function broadcastMessage(req, event, message) {
   req.app.get("io")?.to(`channel:${message.channel}`).emit(event, { message });
@@ -16,6 +17,11 @@ async function broadcastUnreadUpdate(req, message) {
 }
 
 export const messageController = {
+  async searchMessages(req, res) {
+    const result = await messageSearchService.search(req.user._id, req.query);
+    res.json(result);
+  },
+
   async getChannelMessages(req, res) {
     const result = await messageService.getChannelMessages(req.user._id, req.params.channelId, req.query);
     res.json(result);

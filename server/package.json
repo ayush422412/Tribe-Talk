@@ -6,19 +6,29 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "worker:email": "node src/workers/emailWorker.js",
+    "dev:worker:email": "nodemon src/workers/emailWorker.js",
+    "verify:email": "node src/scripts/verifyEmailInfrastructure.js",
+    "worker:search": "node src/workers/messageSearchWorker.js",
+    "dev:worker:search": "nodemon src/workers/messageSearchWorker.js",
+    "reindex:messages": "node src/scripts/reindexMessages.js",
+    "retry:search-jobs": "node src/scripts/retryFailedSearchJobs.js"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.3.0",
     "bcryptjs": "^2.4.3",
+    "bullmq": "^6.3.16",
     "cookie": "^1.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.5",
     "multer": "^2.2.0",
+    "nodemailer": "^10.1.7",
     "redis": "^4.7.0",
     "socket.io": "^4.8.1"
   },

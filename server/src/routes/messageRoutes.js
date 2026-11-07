@@ -9,6 +9,7 @@ export const messageRoutes = Router();
 messageRoutes.use(requireAuth);
 
 messageRoutes.get("/unread", asyncHandler(messageController.getUnreadCounts));
+messageRoutes.get("/search", asyncHandler(messageController.searchMessages));
 messageRoutes.patch("/channels/:channelId/read", asyncHandler(messageController.markChannelRead));
 
 messageRoutes.route("/channels/:channelId")

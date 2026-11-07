@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: tribetalk-api
+    runtime: docker
+    plan: free
+    dockerContext: .
+    dockerfilePath: ./server/Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SAME_SITE
+        value: none
+      - key: ELASTICSEARCH_ENABLED
+        value: false
+      - key: RUN_WORKERS_IN_API
+        value: false
+      - key: EMAIL_WORKER_ENABLED
+        value: false
+      - key: MONGODB_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        sync: false
